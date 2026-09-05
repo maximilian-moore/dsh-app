@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Node / plugin
+node_modules/
+*.tsbuildinfo
+
+# Android
+*.apk
+*.aab
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Secrets / local config (never commit credentials or device keys)
+*.pem
+*.keystore
+*.jks
+.env
+.env.*
+!*.env.example
