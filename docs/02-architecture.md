@@ -2,10 +2,13 @@
 
 ## 1. Overview
 
-The harness already provides everything the web app uses: a durable session store, a session-query service, the agent runtime, and cookie auth. The architecture keeps that server loopback-only and puts Tailscale in front of it. The client is built in two stages:
+The harness already provides a durable session store, a session-query service, the agent runtime, and cookie auth. The architecture keeps that server loopback-only on the Mac and fronts it with Tailscale. 
 
-- **v1 — WebView shell**: a thin Android app wrapping the existing web GUI. Zero harness changes; validates the whole network + auth path fast.
-- **v2 — Mobile Bridge + native client**: a reusable harness plugin (`dsh-remote-bridge`) exposes a small stable API; a native Compose client implements the Claude-Code-like experience (native conversation list, streaming, approvals, workspace/GitHub).
+The client is a **Progressive Web App (PWA)**:
+- Served directly from the Mac over Tailscale HTTPS (`tailscale serve`).
+- Installed on Android Chrome (WebAPK) or iPad Safari (standalone mode).
+- Uses the **W3C Web Push API** via a Service Worker for background approval alerts and completion notifications.
+- Interacts with a lightweight **Mobile Bridge** (`dsh-remote-bridge`) exposing a stable `/mobile/*` API and mobile-first UI.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -16,22 +19,27 @@ The harness already provides everything the web app uses: a durable session stor
 │  │                                                                  │  │
 │  │   session store ── session-query ──►  web GUI (SPA)             │  │
 │  │   (JSONL, ~/.dsh)                      ▲                        │  │
-│  │   agent runtime                        │  v2                     │  │
-│  │   BrowserAuth / connection  ──►  dsh-remote-bridge plugin       │  │
-│  │                                     │  /mobile/* routes          │  │
-│  │                                     │  + SSE stream              │  │
-│  │                                     │  + device auth             │  │
-│  │                                     │  + workspace / git clone   │  │
+│  │   agent runtime                        │                        │  │
+│  │   BrowserAuth / connection             │                        │  │
+│  │               │                        │                        │  │
+│  │               ▼                        │                        │  │
+│  │     dsh-remote-bridge plugin           │                        │  │
+│  │     - /mobile/ UI (PWA static assets)  │                        │  │
+│  │     - /mobile/* REST & SSE stream      │                        │  │
+│  │     - Web Push Service (VAPID)         │                        │  │
+│  │     - Workspace & Git clone manager    │                        │  │
+│  │                                                                  │  │
 │  └─────────────────────────────────────┼────────────────────────────┘  │
 │                         Tailscale (tailscaled) + tailscale serve        │
 └─────────────────────────────────────────┼──────────────────────────────┘
                                           │  WireGuard + HTTPS (tailnet-only)
                                           ▼
                     ┌─────────────────────────────────────────────┐
-                    │  Phone                                        │
-                    │  - Tailscale app (system VPN)                 │
-                    │  v1: WebView shell → web GUI                  │
-                    │  v2: native Compose client → /mobile/*        │
+                    │  Phone (Honor Pro 400) / iPad               │
+                    │  - Tailscale app (WireGuard mesh)           │
+                    │  - Android Chrome PWA (WebAPK standalone)   │
+                    │  - Service Worker (caching + push handler)  │
+                    │  - Native Web Push notifications            │
                     └─────────────────────────────────────────────┘
 ```
 
@@ -43,79 +51,108 @@ The harness already provides everything the web app uses: a durable session stor
 - Conversation list + history come from `session-query` (`listSessions`, `load`) over the JSONL persistence — the same store the web app shows.
 - The server's gzip middleware already special-cases `text/event-stream`, so **SSE** is a natural streaming transport.
 
-## 3. Transport
+## 3. Transport & Networking
 
-- Harness: `dsh web --trusted-host <mac>.<tailnet>.ts.net` (loopback, port 3080).
-- Tailscale: `tailscale serve --bg http://127.0.0.1:3080` → publishes `https://<mac>.<tailnet>.ts.net` to the tailnet only, with a Tailscale-managed TLS cert.
-- The phone (Tailscale app VPN) reaches that HTTPS origin directly.
+- **Harness:** `dsh web --trusted-host <mac>.<tailnet>.ts.net` (loopback, port 3080).
+- **Tailscale:** `tailscale serve --bg http://127.0.0.1:3080` → publishes `https://<mac>.<tailnet>.ts.net` to the tailnet only, with a Tailscale-managed TLS certificate.
+- **Why this satisfies PWA & Web Push:**
+  - Modern browsers require a **Secure Context (HTTPS)** to register Service Workers and subscribe to the `PushManager`.
+  - Tailscale's MagicDNS TLS cert on `.ts.net` satisfies browser security requirements natively, without self-signed cert warnings.
+- **Phone Access:** Reaches `https://<mac>.<tailnet>.ts.net` seamlessly over the Tailscale VPN tunnel.
 
-## 4. v1 — WebView shell
+## 4. Client PWA Architecture
 
-A minimal Android app (one Activity + `WebView` + `WebViewClient`):
+The client runs as a standalone PWA without requiring Android Studio, Gradle, or APK distribution:
 
-- Points the `WebView` at `https://<mac>.<tailnet>.ts.net`.
-- Persists cookies (the harness cookie) via the system `CookieManager`.
-- Handles the first-run auth: load the boot-token URL once to mint the cookie.
-- Re-auth: with a long cookie lifetime this is rare; v1 exposes a manual "re-authenticate" action that reloads the token URL. (v2 automates this via the bridge, see §6.)
+- **Web App Manifest (`manifest.webmanifest`):**
+  - `display: "standalone"` — launches without browser address bar or bottom bar.
+  - `theme_color` & `background_color` matching the app theme.
+  - High-resolution adaptive icons for home screen and splash.
+  - `start_url: "/mobile/"`
+- **Service Worker (`sw.js`):**
+  - **Push Listener:** Catches incoming Web Push events from the Mac and calls `self.registration.showNotification()`.
+  - **Action Handlers:** Supports notification actions (e.g. `Approve`, `Reject`, `View`) that can send an approval POST directly or focus the PWA window.
+  - **Asset Caching:** Caches core UI shell assets for instant startup; data routes remain network-first.
+- **Responsive Mobile UI:**
+  - Designed for thumb use on 6–7" phone displays (and tablets).
+  - Virtual keyboard resilience (`<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">`).
+  - Haptic feedback on actions (`navigator.vibrate()`).
 
-v1 delivers FR1 (secure transport), FR2 (basic auth), FR3/FR4 (via the web GUI it wraps), but **not** FR5 (workspace/GitHub selection is not in the web GUI) and not a native conversation-list UX.
+## 5. `dsh-remote-bridge` Plugin & API
 
-## 5. v2 — `dsh-remote-bridge` plugin (harness side)
+A reusable Host plugin registering routes on the **existing** `webServer` (same port, so `tailscale serve` already fronts it).
 
-A reusable Host plugin registering routes on the **existing** `webServer` (same port, so `tailscale serve` already fronts it). It wraps harness services, not the web app's private RPC:
-
-| App capability | Bridge endpoint | Backed by |
+| Capability | Bridge Route / Method | Description |
 |---|---|---|
-| List conversations | `GET /mobile/sessions` | `session-query.listSessions()` |
-| Read one conversation | `GET /mobile/sessions/{id}` | `session-query.load(id)` |
-| New / resume session | `POST /mobile/sessions[/{id}]` | session registry / agent services |
-| Send prompt + stream | `POST /mobile/sessions/{id}/prompt` + `GET /mobile/stream` (SSE) | agent runtime + session events |
-| Approve / reject | `POST /mobile/approvals/{id}` | approval service |
-| List / set workspace | `GET|POST /mobile/workspace` | session cwd |
-| Clone GitHub repo | `POST /mobile/workspace/clone` | `git clone` on the Mac, then set cwd |
-| Device auth / cookie re-issue | `POST /mobile/auth/token` | `connection.authenticatedUrl()` |
+| PWA Entry | `GET /mobile/` | Serves the mobile-optimized PWA static bundle |
+| Web App Manifest | `GET /mobile/manifest.webmanifest` | PWA installation metadata |
+| Service Worker | `GET /mobile/sw.js` | Service worker script |
+| List sessions | `GET /mobile/api/sessions` | Returns conversation list via `session-query` |
+| Load session | `GET /mobile/api/sessions/{id}` | Returns full message & tool execution history |
+| Prompt & Stream | `POST /mobile/api/sessions/{id}/prompt` | Dispatches user prompt to session agent |
+| Live Events (SSE) | `GET /mobile/api/stream?sessionId={id}` | SSE stream for real-time text chunks & tool calls |
+| Approvals | `POST /mobile/api/approvals/{id}` | Approve or reject pending tool calls |
+| Workspace list/set | `GET\|POST /mobile/api/workspace` | Get or update session working directory |
+| Git Clone | `POST /mobile/api/workspace/clone` | Triggers background clone on Mac using Mac's Git |
+| Push Subscribe | `POST /mobile/api/push/subscribe` | Registers browser `PushSubscription` JSON |
+| Push Unsubscribe | `POST /mobile/api/push/unsubscribe` | Removes active subscription |
+| Device Auth / Re-issue | `POST /mobile/api/auth/token` | Re-mints valid cookie using paired device secret |
 
 ### Reusability (FR6)
 
-The plugin is self-contained and configured in the host composition (or a preset), e.g.:
-
+Configured via standard DSH composition:
 ```yaml
 - id: dsh-remote-bridge
   config:
     allowedWorkspaceRoots: ["~/DevProjects"]
     cookieMaxAgeDays: 365
-    # device keys / pairing established at runtime, stored in ~/.dsh
+    vapidKeysPath: "~/.dsh/vapid.json"
 ```
 
-Any DSH user installs the plugin package and adds the row; no fork of harness internals. GitHub credentials are inherited from the Mac's `git` (SSH agent / keychain / credential helper), so the plugin never stores them.
+## 6. Authentication & Push Subscription Flow
 
-## 6. Auth & re-auth flow (FR2)
+1. **Initial Pairing (One-time):**
+   - On first open over Tailnet, user opens `https://<mac>.<tailnet>.ts.net/?token=<launchToken>`.
+   - DSH issues an HTTP-only, secure, signed cookie valid for 180–365 days.
+   - PWA generates a random Device Key stored in browser `IndexedDB` and registers it with the bridge.
+2. **Push Setup:**
+   - User taps "Enable Notifications" in the PWA.
+   - Browser asks for notification permission.
+   - Browser contacts Google Push Service via `PushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidPublicKey })`.
+   - Resulting endpoint and keys are sent to `POST /mobile/api/push/subscribe`.
+3. **Approval Notification Event:**
+   - Agent requests a tool execution needing confirmation.
+   - Bridge checks active push subscriptions, signs payload with private VAPID key (RFC 8292), and sends to push endpoint.
+   - Android shows system notification: *"DSH: Approval Required - Run git push origin main"*.
+   - User taps **Approve** directly from notification or opens PWA.
 
-**Pairing (once).**
-1. The app generates a device keypair/API key and shows a short pairing code.
-2. The owner approves it once in the web GUI (or via a bridge config file). The bridge persists the approved device key in `~/.dsh`.
-3. The device key is stored in **Android Keystore**.
+## 7. Security Model & Lost Device Revocation
 
-**Normal use.** The app authenticates with the signed browser cookie (fetched at pairing).
+### Defense-in-Depth Layers
+1. **Network Layer (WireGuard):** DSH is only bound to `127.0.0.1`. The only ingress is `tailscale serve` over an encrypted WireGuard mesh. No public ports exist, and `tailscale funnel` is strictly prohibited.
+2. **Tailscale ACLs (Device Isolation):** Tailscale ACL rules can restrict port 3080 so that *only* the authorized phone (`tag:mobile-client` or node `honor-400-pro`) can communicate with the Mac on that port.
+3. **Application Layer (Signed Cookie + Device Key):** The browser cookie is cryptographic, authority-bound, and signed with a Mac-local secret.
+4. **Execution Blast Radius (Workspace Sandboxing):** The bridge only allows setting session roots or cloning into whitelisted paths (e.g. `~/DevProjects`). It refuses paths outside this root (like `~/.ssh`, `/etc`, or `/System`).
+5. **Web Push Privacy:** Push payloads are end-to-end encrypted using RFC 8291 (ECDH curve P-256). Intermediaries (Google's push servers) cannot read the notification body.
 
-**Silent re-issue (cookie expired / `dsh web` restarted).**
-1. App gets `401` → calls `POST /mobile/auth/token` with `Authorization: Bearer <deviceKey>`.
-2. Bridge calls `connection.authenticatedUrl(origin)` → returns the **current** process launch token (correct even after restart).
-3. App GETs that token URL → server sets a fresh signed cookie and redirects.
-4. App stores the new cookie and retries.
+### Lost Phone Revocation Protocol
 
-Result: **no manual effort after the one-time pairing**, surviving PC restarts. Cookie lifetime is also raised (e.g. 180–365 days) so re-issue is rare.
+If the phone is lost or stolen:
 
-## 7. Security model
+1. **Instant Network Kill-Switch (Zero Trust):**
+   - Open the [Tailscale Admin Console](https://login.tailscale.com/admin/machines).
+   - Click the phone device (`honor-400-pro`) and select **Disable Key Sharing** or **Remove from tailnet**.
+   - **Effect:** Immediately cuts off all network routing at the WireGuard layer within seconds. The phone can no longer establish a TCP/TLS connection to the Mac.
+2. **Application Cookie & Token Invalidation:**
+   - Delete `~/.dsh/paired_devices.json` on the Mac (or remove the specific device entry).
+   - Restart `dsh web` (or delete the cookie signing secret in `~/.dsh`) to invalidate all existing cookies.
+3. **Web Push Invalidation:**
+   - Clear `~/.dsh/push_subscriptions.json` on the Mac. The Mac will immediately stop transmitting push notifications to the phone's push endpoint.
 
-- Harness stays on `127.0.0.1`; only `tailscale serve` (tailnet-only, TLS) fronts it — never `tailscale funnel`.
-- Two independent layers: Tailscale membership + harness cookie/device key.
-- Device key in Keystore; cookie authority-bound; optional Tailscale ACLs allow only the phone.
-- The bridge's device-auth route still sits behind the `/api`-style trust fence (`--trusted-host`), so no DNS-rebinding exposure.
-- The app never handles GitHub secrets; Git operations run on the Mac with the Mac's credentials.
+## 8. Client Stack
 
-## 8. Client (v2) stack
-
-- Kotlin + Jetpack Compose (Android), OkHttp for HTTP + SSE, Android Keystore for the device key.
-- Screens: Sessions (list) · Chat (streaming) · Approvals · Workspace picker (local folder / GitHub) · Settings/auth.
-- See ADR-002 for the Flutter/iOS consideration.
+- **Format:** Progressive Web App (PWA) with Web App Manifest & Service Worker.
+- **Frontend Stack:** Modern responsive UI (Vanilla JS / Preact / Tailwind CSS) with dark mode by default.
+- **Communication:** Fetch API for REST endpoints; `EventSource` (SSE) for token streaming and real-time tool state updates.
+- **Notifications:** W3C Push API + Notification API.
+- **Storage:** Browser `IndexedDB` / `localStorage` for UI preferences and device pairing key.
