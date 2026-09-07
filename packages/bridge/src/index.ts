@@ -6,18 +6,42 @@ import { handleStaticRequest, resolveDefaultClientDir } from './routes/static.js
 import { handleSessionsRequest } from './routes/sessions.js';
 import { handleModelsRequest } from './routes/models.js';
 import { handleWorkspacesRequest } from './routes/workspaces.js';
+import { handleAuthRequest } from './routes/auth.js';
+import { requestAuthority, mintDshSessionCookie, hasValidDshCookie, loadDshSigningSecret } from './auth.js';
 
 export * from './types.js';
+export * from './auth.js';
 export { handleHealthRequest } from './routes/health.js';
 export { handleStaticRequest, resolveDefaultClientDir } from './routes/static.js';
 export { handleSessionsRequest } from './routes/sessions.js';
 export { handleModelsRequest } from './routes/models.js';
 export { handleWorkspacesRequest } from './routes/workspaces.js';
+export { handleAuthRequest } from './routes/auth.js';
 
 export const name = 'dsh-remote-bridge';
 export const inject = ['webServer'];
 
-export function createBridgeHandler(ctx?: Context, config?: BridgeConfig) {
+export function createBridgeHandler(
+  ctxOrConfig?: Context | BridgeConfig,
+  maybeConfig?: BridgeConfig
+) {
+  let ctx: Context | undefined;
+  let config: BridgeConfig | undefined;
+
+  if (
+    ctxOrConfig &&
+    ('clientDistPath' in ctxOrConfig ||
+      'dshSecret' in ctxOrConfig ||
+      'allowedWorkspaceRoots' in ctxOrConfig ||
+      'credentialsPath' in ctxOrConfig)
+  ) {
+    config = ctxOrConfig as BridgeConfig;
+    ctx = undefined;
+  } else {
+    ctx = ctxOrConfig as Context | undefined;
+    config = maybeConfig;
+  }
+
   const clientDir = config?.clientDistPath || resolveDefaultClientDir();
 
   return async function bridgeHttpHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -31,29 +55,56 @@ export function createBridgeHandler(ctx?: Context, config?: BridgeConfig) {
       }
     }
 
-    // 2. Sessions listing
+    // 2. Auth endpoint (SameSite=Lax cookie minting for PWA WebAPK)
+    if (pathname === '/mobile/api/auth') {
+      if (handleAuthRequest(req, res, config)) {
+        return;
+      }
+    }
+
+    // 3. Sessions listing
     if (pathname === '/mobile/api/sessions') {
       if (await handleSessionsRequest(req, res, ctx)) {
         return;
       }
     }
 
-    // 3. Models listing
+    // 4. Models listing
     if (pathname === '/mobile/api/models') {
       if (handleModelsRequest(req, res)) {
         return;
       }
     }
 
-    // 4. Workspaces listing
+    // 5. Workspaces listing
     if (pathname === '/mobile/api/workspaces') {
       if (handleWorkspacesRequest(req, res, config)) {
         return;
       }
     }
 
-    // 5. Static PWA asset serving (including /mobile/dsh-mobile-enhancer.css & .js)
-    if (handleStaticRequest(req, res, clientDir)) {
+    // 6. Static PWA asset serving (including /mobile/dsh-mobile-enhancer.css & .js)
+    // On navigation to entry HTML (/mobile or /mobile/), ensure a valid SameSite=Lax cookie is attached
+    let extraHeaders: Record<string, string> | undefined;
+    if (pathname === '/mobile' || pathname === '/mobile/' || pathname === '/mobile/index.html') {
+      const secret = Buffer.isBuffer(config?.dshSecret)
+        ? config.dshSecret
+        : typeof config?.dshSecret === 'string'
+        ? Buffer.from(config.dshSecret, 'utf8')
+        : loadDshSigningSecret(config?.credentialsPath);
+
+      const authority = requestAuthority(req);
+      if (secret && authority && !hasValidDshCookie(req, secret)) {
+        const { headerValue } = mintDshSessionCookie(
+          authority,
+          secret,
+          config?.cookieMaxAgeDays ?? 30
+        );
+        extraHeaders = { 'Set-Cookie': headerValue };
+      }
+    }
+
+    if (handleStaticRequest(req, res, clientDir, extraHeaders)) {
       return;
     }
 

@@ -47,6 +47,13 @@
     background: var(--dsw-specific-sidebar-fill, #16181d) !important;
   }
 
+  /* Ensure sidebar child container stretches to full drawer width */
+  [class*="_sidebarCol"] > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
   body.dsh-mobile-sidebar-open [class*="_sidebarCol"] {
     transform: translateX(0) !important;
   }
@@ -96,6 +103,11 @@
     background: rgba(15, 23, 42, 0.95) !important;
   }
 
+  /* Hide hamburger button when any dialog/settings modal is active */
+  body:has([role="dialog"]) .dsh-mobile-hamburger-btn {
+    display: none !important;
+  }
+
   /* Offset top content slightly so it doesn't collide with the hamburger button */
   [class*="_centerCol"] > div:first-child {
     padding-left: 48px !important;
@@ -104,5 +116,143 @@
   /* Input bar padding for mobile virtual keyboard and safe area */
   textarea, input {
     font-size: 16px !important; /* Prevents auto-zoom in iOS Safari / Android Chrome */
+  }
+
+  /* 5. Settings Modal Full-Screen on Mobile */
+  /* Overlay */
+  div[role="presentation"]:has([role="dialog"]),
+  [class*="_overlay"]:has([role="dialog"]) {
+    z-index: 2000 !important;
+    position: fixed !important;
+    inset: 0 !important;
+  }
+
+  /* Panel - Take up full screen */
+  [role="dialog"][class*="_panel"],
+  div:has(> [class*="_close"])[class*="_panel"] {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--dsw-alias-bg-layer-2, #181a20) !important;
+    box-shadow: none !important;
+    z-index: 2001 !important;
+    overflow: hidden !important;
+  }
+
+  /* Navigation Header at Top */
+  [role="dialog"] [class*="_nav"] {
+    width: 100% !important;
+    height: auto !important;
+    padding: 14px 14px 6px !important;
+    flex: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    border-bottom: 1px solid var(--dsw-alias-border-l3, rgba(255, 255, 255, 0.08)) !important;
+    background: var(--dsw-alias-bg-layer-2, #181a20) !important;
+  }
+
+  [role="dialog"] [class*="_navTitle"] {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    padding: 0 4px !important;
+    margin-right: 48px !important; /* Space for the absolute X button */
+  }
+
+  /* Navigation tabs as a horizontal scrollable strip */
+  [role="dialog"] [class*="_navList"] {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 6px !important;
+  }
+
+  [role="dialog"] [class*="_navList"]::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  [role="dialog"] [class*="_navCell"] {
+    flex: none !important;
+    height: 36px !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Content Column */
+  [role="dialog"] [class*="_content"] {
+    flex: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  /* Close (X) Button - Positioned in top-right corner of dialog */
+  [role="dialog"] [class*="_close"] {
+    position: fixed !important;
+    top: 10px !important;
+    right: 12px !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: var(--dsw-alias-label-primary, #ffffff) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 2010 !important;
+    cursor: pointer !important;
+    border: none !important;
+    transition: background 0.15s ease, transform 0.15s ease !important;
+  }
+
+  [role="dialog"] [class*="_close"]:active {
+    background: rgba(255, 255, 255, 0.22) !important;
+    transform: scale(0.92) !important;
+  }
+
+  [role="dialog"] [class*="_header"] {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 4px 14px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Options / Body scroll area */
+  [role="dialog"] [class*="_options"] {
+    flex: 1 !important;
+    min-height: 0 !important;
+    padding: 12px 16px 40px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* General settings rows and cards responsive wrapping */
+  [role="dialog"] [class*="_options"] table,
+  [role="dialog"] [class*="_options"] [class*="_row"],
+  [role="dialog"] [class*="_options"] [class*="_card"] {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 }

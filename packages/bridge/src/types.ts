@@ -5,6 +5,8 @@ export interface BridgeConfig {
   vapidKeysPath?: string;
   clientDistPath?: string;
   cookieMaxAgeDays?: number;
+  dshSecret?: string | Buffer;
+  credentialsPath?: string;
 }
 
 export interface WebRoute {

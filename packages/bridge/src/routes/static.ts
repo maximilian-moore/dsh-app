@@ -35,7 +35,8 @@ export function resolveDefaultClientDir(): string {
 export function handleStaticRequest(
   req: IncomingMessage,
   res: ServerResponse,
-  clientDir: string
+  clientDir: string,
+  extraHeaders?: Record<string, string>
 ): boolean {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return false;
@@ -107,6 +108,12 @@ export function handleStaticRequest(
 
   const stat = statSync(targetPath);
   headers['Content-Length'] = stat.size.toString();
+
+  if (extraHeaders) {
+    for (const [k, v] of Object.entries(extraHeaders)) {
+      headers[k] = v;
+    }
+  }
 
   res.writeHead(200, headers);
 

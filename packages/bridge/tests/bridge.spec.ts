@@ -11,7 +11,7 @@ const clientDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../c
 // Helper to simulate HTTP requests against the handler
 async function simulateRequest(
   handler: (req: IncomingMessage, res: ServerResponse) => Promise<void>,
-  options: { method?: string; url: string }
+  options: { method?: string; url: string; headers?: Record<string, string> }
 ): Promise<{ statusCode: number; headers: Record<string, string>; body: string }> {
   return new Promise((resolvePromise, reject) => {
     let statusCode = 200;
@@ -21,7 +21,7 @@ async function simulateRequest(
     const req = new EventEmitter() as unknown as IncomingMessage;
     req.method = options.method || 'GET';
     req.url = options.url;
-    req.headers = {};
+    req.headers = options.headers || {};
 
     const res = new EventEmitter() as unknown as ServerResponse;
     res.writeHead = vi.fn((code: number, hdrs?: Record<string, string>) => {
@@ -172,6 +172,65 @@ describe('dsh-remote-bridge plugin', () => {
       const res = await simulateRequest(handler, { url: '/mobile/../../package.json' });
       expect([403, 404]).toContain(res.statusCode);
       expect(res.body).not.toContain('dsh-remote-monorepo');
+    });
+
+    describe('Authentication & SameSite=Lax cookie minting', () => {
+      const mockSecret = Buffer.from('01234567890123456789012345678901'); // 32 bytes
+      const authHandler = createBridgeHandler({
+        clientDistPath: clientDir,
+        dshSecret: mockSecret
+      });
+
+      it('answers GET /mobile/api/auth and mints SameSite=Lax cookie', async () => {
+        const response = await simulateRequest(authHandler, {
+          url: '/mobile/api/auth',
+          headers: { host: 'test.tailnet.ts.net' }
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(response.headers['set-cookie']).toBeDefined();
+        expect(response.headers['set-cookie']).toContain('SameSite=Lax');
+        expect(response.headers['set-cookie']).toContain('HttpOnly');
+        expect(response.headers['set-cookie']).toContain('Path=/');
+
+        const data = JSON.parse(response.body);
+        expect(data.status).toBe('ok');
+        expect(data.authenticated).toBe(true);
+        expect(data.cookieName).toMatch(/^dsh-auth-/);
+      });
+
+      it('automatically attaches SameSite=Lax cookie on /mobile/ index requests', async () => {
+        const response = await simulateRequest(authHandler, {
+          url: '/mobile/',
+          headers: { host: 'test.tailnet.ts.net' }
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['set-cookie']).toBeDefined();
+        expect(response.headers['set-cookie']).toContain('SameSite=Lax');
+      });
+
+      it('verifies signed cookie with hasValidDshCookie', async () => {
+        const { mintDshSessionCookie, hasValidDshCookie } = await import('../src/auth.js');
+        const authority = 'my-host.ts.net';
+        const { cookieName, cookieValue } = mintDshSessionCookie(authority, mockSecret);
+
+        const mockReqValid = {
+          headers: {
+            host: authority,
+            cookie: `${cookieName}=${cookieValue}`
+          }
+        } as any;
+
+        const mockReqInvalid = {
+          headers: {
+            host: authority,
+            cookie: `${cookieName}=v1.tampered.signature`
+          }
+        } as any;
+
+        expect(hasValidDshCookie(mockReqValid, mockSecret)).toBe(true);
+        expect(hasValidDshCookie(mockReqInvalid, mockSecret)).toBe(false);
+      });
     });
   });
 });
