@@ -147,11 +147,12 @@ export function apply(ctx: Context, config?: BridgeConfig): () => void {
         '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />'
       );
 
-      // Inject mobile drawer styles and hamburger script
+      // Inject mobile drawer styles and hamburger script with dynamic cache-busting query
+      const cacheBust = Date.now();
       const injection = `
     <!-- DSH Remote Mobile Enhancer -->
-    <link rel="stylesheet" href="/mobile/dsh-mobile-enhancer.css" />
-    <script type="module" src="/mobile/dsh-mobile-enhancer.js"></script>
+    <link rel="stylesheet" href="/mobile/dsh-mobile-enhancer.css?t=${cacheBust}" />
+    <script type="module" src="/mobile/dsh-mobile-enhancer.js?t=${cacheBust}"></script>
       `;
 
       if (modified.includes('</head>')) {
@@ -164,9 +165,65 @@ export function apply(ctx: Context, config?: BridgeConfig): () => void {
     });
   }
 
+  // 3. Transparent auto-authentication on root GET / requests
+  let disposeAuth = () => {};
+  const ctxAny = ctx as any;
+  const hookConnection = (connection: any) => {
+    if (!connection || typeof connection.authorizeIndex !== 'function') return;
+    const originalFn = connection.authorizeIndex;
+
+    connection.authorizeIndex = function (req: any, res: any) {
+      // If already authenticated by cookie, proceed normally
+      if (typeof connection.browserAuth?.isAuthenticated === 'function' && connection.browserAuth.isAuthenticated(req)) {
+        return originalFn.call(connection, req, res);
+      }
+
+      const url = new URL(req.url ?? '/', 'http://dsh.invalid');
+      // If token query is present, let native token exchange proceed
+      if (url.searchParams.has('token')) {
+        return originalFn.call(connection, req, res);
+      }
+
+      // If GET / without cookie, auto-mint SameSite=Lax cookie and 303 redirect
+      if (req.method === 'GET' && url.pathname === '/') {
+        const secret = connection.browserAuth?.secret || loadDshSigningSecret(config?.credentialsPath);
+        const authority = requestAuthority(req);
+
+        if (secret && authority) {
+          const maxAgeDays = config?.cookieMaxAgeDays ?? 30;
+          const { headerValue } = mintDshSessionCookie(authority, secret, maxAgeDays);
+
+          res.writeHead(303, {
+            'cache-control': 'no-store',
+            'location': '/',
+            'referrer-policy': 'no-referrer',
+            'set-cookie': headerValue
+          });
+          res.end();
+          return false;
+        }
+      }
+
+      return originalFn.call(connection, req, res);
+    };
+
+    disposeAuth = () => {
+      connection.authorizeIndex = originalFn;
+    };
+  };
+
+  if (typeof ctxAny.inject === 'function') {
+    ctxAny.inject(['connection'], (innerCtx: any) => {
+      hookConnection(innerCtx.connection);
+    });
+  } else if (ctxAny.connection) {
+    hookConnection(ctxAny.connection);
+  }
+
   return () => {
     disposeRoute();
     disposeTap();
+    disposeAuth();
   };
 }
 

@@ -85,6 +85,68 @@ describe('dsh-remote-bridge plugin', () => {
     expect(mockDisposer).toHaveBeenCalled();
   });
 
+  it('hooks connection.authorizeIndex to auto-mint SameSite=Lax cookie on root requests', () => {
+    const mockSecret = Buffer.from('01234567890123456789012345678901');
+    const mockOriginalAuthorize = vi.fn().mockReturnValue(false);
+    const mockConnection = {
+      authorizeIndex: mockOriginalAuthorize,
+      browserAuth: {
+        isAuthenticated: vi.fn().mockReturnValue(false),
+        secret: mockSecret,
+        maxAgeMilliseconds: 30 * 86400 * 1000
+      }
+    };
+    const mockRegister = vi.fn().mockReturnValue(vi.fn());
+    const mockCtx = {
+      webServer: { host: '127.0.0.1' as const, port: 3080, register: mockRegister },
+      connection: mockConnection
+    };
+
+    const disposer = apply(mockCtx as any, { dshSecret: mockSecret });
+    expect(mockConnection.authorizeIndex).not.toBe(mockOriginalAuthorize);
+
+    const mockReq = {
+      method: 'GET',
+      url: '/',
+      headers: { host: 'tailnet.ts.net' }
+    };
+    const writeHeadSpy = vi.fn();
+    const endSpy = vi.fn();
+    const mockRes = { writeHead: writeHeadSpy, end: endSpy };
+
+    const allowed = mockConnection.authorizeIndex(mockReq, mockRes);
+    expect(allowed).toBe(false);
+    expect(writeHeadSpy).toHaveBeenCalledWith(303, expect.objectContaining({
+      location: '/',
+      'set-cookie': expect.stringContaining('SameSite=Lax')
+    }));
+    expect(endSpy).toHaveBeenCalled();
+
+    disposer();
+    expect(mockConnection.authorizeIndex).toBe(mockOriginalAuthorize);
+  });
+
+  it('injects dynamic cache-busting query in tapIndex transform', () => {
+    let tapCallback: ((html: string) => string) | undefined;
+    const mockCtx = {
+      webServer: {
+        host: '127.0.0.1' as const,
+        port: 3080,
+        register: vi.fn().mockReturnValue(vi.fn()),
+        tapIndex: vi.fn((cb) => {
+          tapCallback = cb;
+          return vi.fn();
+        })
+      }
+    };
+
+    apply(mockCtx as any);
+    expect(tapCallback).toBeDefined();
+    const outputHtml = tapCallback!('<html><head></head><body></body></html>');
+    expect(outputHtml).toMatch(/dsh-mobile-enhancer\.css\?t=\d+/);
+    expect(outputHtml).toMatch(/dsh-mobile-enhancer\.js\?t=\d+/);
+  });
+
   describe('HTTP endpoints', () => {
     const handler = createBridgeHandler({ clientDistPath: clientDir });
 
