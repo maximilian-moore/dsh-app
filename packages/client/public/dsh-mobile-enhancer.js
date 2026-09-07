@@ -121,13 +121,103 @@
       true // Capture phase
     );
 
-    // Watch for dialog open/close in DOM
+    // 3. Settings Navigation Enhancer for Mobile (Top dropdown selector)
+    function setupSettingsMobileNav(dialog) {
+      if (!dialog || window.innerWidth > 768) return;
+      const nav = dialog.querySelector('nav') || dialog.querySelector('[class*="_nav"]');
+      if (!nav) return;
+
+      const navList = nav.querySelector('[class*="_navList"]');
+      if (!navList) return;
+
+      const buttons = Array.from(navList.querySelectorAll('button'));
+      if (buttons.length === 0) return;
+
+      let mobileNav = nav.querySelector('#dsh-mobile-settings-nav');
+      let select = mobileNav ? mobileNav.querySelector('#dsh-mobile-settings-select') : null;
+
+      if (!mobileNav) {
+        mobileNav = document.createElement('div');
+        mobileNav.id = 'dsh-mobile-settings-nav';
+        mobileNav.className = 'dsh-mobile-settings-nav';
+        mobileNav.innerHTML = `
+          <div class="dsh-mobile-settings-select-wrap">
+            <select id="dsh-mobile-settings-select" class="dsh-mobile-settings-select" aria-label="Settings Section">
+            </select>
+            <div class="dsh-mobile-settings-select-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+        `;
+
+        select = mobileNav.querySelector('#dsh-mobile-settings-select');
+
+        buttons.forEach((btn, idx) => {
+          const option = document.createElement('option');
+          option.value = String(idx);
+          const labelText =
+            btn.querySelector('[class*="_navLabel"]')?.textContent?.trim() ||
+            btn.textContent?.trim() ||
+            `Section ${idx + 1}`;
+          option.textContent = labelText;
+          if (btn.getAttribute('aria-current') === 'true' || btn.className.includes('active')) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+
+        select.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.value, 10);
+          if (!isNaN(idx) && buttons[idx]) {
+            buttons[idx].click();
+          }
+        });
+
+        const navTitle = nav.querySelector('[class*="_navTitle"]');
+        if (navTitle && navTitle.nextSibling) {
+          nav.insertBefore(mobileNav, navTitle.nextSibling);
+        } else {
+          nav.appendChild(mobileNav);
+        }
+      } else if (select) {
+        // Re-populate if section count changed (e.g. locale change or dynamic plugins)
+        if (select.options.length !== buttons.length) {
+          select.innerHTML = '';
+          buttons.forEach((btn, idx) => {
+            const option = document.createElement('option');
+            option.value = String(idx);
+            const labelText =
+              btn.querySelector('[class*="_navLabel"]')?.textContent?.trim() ||
+              btn.textContent?.trim() ||
+              `Section ${idx + 1}`;
+            option.textContent = labelText;
+            if (btn.getAttribute('aria-current') === 'true' || btn.className.includes('active')) {
+              option.selected = true;
+            }
+            select.appendChild(option);
+          });
+        } else {
+          // Keep selected option in sync with active button
+          const activeIdx = buttons.findIndex(
+            (btn) => btn.getAttribute('aria-current') === 'true' || btn.className.includes('active')
+          );
+          if (activeIdx >= 0 && select.value !== String(activeIdx)) {
+            select.value = String(activeIdx);
+          }
+        }
+      }
+    }
+
+    // Watch for dialog open/close in DOM and sync settings mobile nav
     const observer = new MutationObserver(() => {
       const dialog = document.querySelector('[role="dialog"]');
       if (dialog) {
         if (!document.body.classList.contains('dsh-dialog-open')) {
           document.body.classList.add('dsh-dialog-open');
         }
+        setupSettingsMobileNav(dialog);
       } else {
         if (document.body.classList.contains('dsh-dialog-open')) {
           document.body.classList.remove('dsh-dialog-open');
@@ -136,7 +226,20 @@
         }
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'aria-current']
+    });
+
+    // Re-check settings nav on resize
+    window.addEventListener('resize', () => {
+      const dialog = document.querySelector('[role="dialog"]');
+      if (dialog) {
+        setupSettingsMobileNav(dialog);
+      }
+    });
 
     // Close on Escape key
     window.addEventListener('keydown', (e) => {
