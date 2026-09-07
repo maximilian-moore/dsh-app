@@ -76,67 +76,15 @@ export function listSessionsFromDisk(): SessionSummary[] {
 
 export async function getSessions(ctx?: Context): Promise<SessionSummary[]> {
   try {
-    // @ts-expect-error Cordis context may carry sessionQuery
-    const sessionQuery = ctx?.sessionQuery || (ctx as any)?.get?.('sessionQuery');
-
-    if (sessionQuery && typeof sessionQuery.listSessions === 'function') {
-      try {
-        const records = await sessionQuery.listSessions();
-        if (Array.isArray(records) && records.length > 0) {
-          const summaries: SessionSummary[] = [];
-
-          for (const record of records) {
-            try {
-              const header = record?.header || record;
-              const id = header?.id || (typeof record === 'string' ? record : '');
-              if (!id) continue;
-
-              let title = '';
-              try {
-                if (typeof sessionQuery.readTitle === 'function') {
-                  const titleSnapshot = await sessionQuery.readTitle(id);
-                  if (titleSnapshot?.title) {
-                    title = titleSnapshot.title;
-                  }
-                }
-              } catch {
-                // Ignore title read failure
-              }
-
-              const cwd = header?.cwd || '';
-              const wsName = cwd ? basename(cwd) : 'Default';
-              if (!title) {
-                const shortId = id.replace('session-', '').slice(0, 8);
-                title = `Session (${shortId})`;
-              }
-
-              summaries.push({
-                id,
-                title,
-                cwd,
-                workspaceName: wsName,
-                createdAt: header?.createdAt || Date.now(),
-                live: !!record?.live
-              });
-            } catch {
-              // Ignore single record format issue
-            }
-          }
-
-          if (summaries.length > 0) {
-            summaries.sort((a, b) => b.createdAt - a.createdAt);
-            return summaries;
-          }
-        }
-      } catch (innerErr) {
-        console.warn('[dsh-remote-bridge] sessionQuery.listSessions failed, falling back to disk:', innerErr);
-      }
+    const diskSessions = listSessionsFromDisk();
+    if (diskSessions.length > 0) {
+      return diskSessions;
     }
   } catch (err) {
-    console.warn('[dsh-remote-bridge] getSessions error:', err);
+    console.warn('[dsh-remote-bridge] disk scan error:', err);
   }
 
-  return listSessionsFromDisk();
+  return [];
 }
 
 export async function handleSessionsRequest(

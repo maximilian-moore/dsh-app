@@ -80,7 +80,9 @@ describe('dsh-remote-bridge plugin', () => {
         path: '/mobile'
       })
     );
-    expect(disposer).toBe(mockDisposer);
+    expect(typeof disposer).toBe('function');
+    disposer();
+    expect(mockDisposer).toHaveBeenCalled();
   });
 
   describe('HTTP endpoints', () => {

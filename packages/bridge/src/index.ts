@@ -52,7 +52,7 @@ export function createBridgeHandler(ctx?: Context, config?: BridgeConfig) {
       }
     }
 
-    // 5. Static PWA asset serving
+    // 5. Static PWA asset serving (including /mobile/dsh-mobile-enhancer.css & .js)
     if (handleStaticRequest(req, res, clientDir)) {
       return;
     }
@@ -79,13 +79,44 @@ export function apply(ctx: Context, config?: BridgeConfig): () => void {
     throw new Error('dsh-remote-bridge requires webServer service on Cordis context');
   }
 
-  const disposer = webServer.register({
+  // 1. Register prefix route under /mobile on the host webServer
+  const disposeRoute = webServer.register({
     kind: 'prefix',
     path: '/mobile',
     handler
   });
 
-  return disposer;
+  // 2. Register tapIndex transform on the official DSH Web App index.html
+  let disposeTap = () => {};
+  if (typeof webServer.tapIndex === 'function') {
+    disposeTap = webServer.tapIndex((html: string) => {
+      // Ensure responsive viewport meta tag
+      let modified = html.replace(
+        /<meta name="viewport"[^>]*>/i,
+        '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />'
+      );
+
+      // Inject mobile drawer styles and hamburger script
+      const injection = `
+    <!-- DSH Remote Mobile Enhancer -->
+    <link rel="stylesheet" href="/mobile/dsh-mobile-enhancer.css" />
+    <script type="module" src="/mobile/dsh-mobile-enhancer.js"></script>
+      `;
+
+      if (modified.includes('</head>')) {
+        modified = modified.replace('</head>', `${injection}\n</head>`);
+      } else {
+        modified += injection;
+      }
+
+      return modified;
+    });
+  }
+
+  return () => {
+    disposeRoute();
+    disposeTap();
+  };
 }
 
 export default {
