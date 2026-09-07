@@ -38,28 +38,32 @@ dsh-app/
 | `docs/03-roadmap.md` | Documentation | ✅ Done (Updated to PWA) |
 | `docs/04-decisions.md` | Documentation | ✅ Done (Added ADR-007/008) |
 | `README.md`, `PROJECT_STATUS.md` | Documentation | ✅ Done |
-| `dsh-remote-bridge` plugin | Source (harness) | ⏳ Scaffolding & core setup |
-| `DSH Remote` PWA client | Source (client) | ⏳ Baseline app shell & PWA assets |
+| `dsh-remote-bridge` plugin (`packages/bridge`) | Source (harness) | ✅ Done (18 Vitest tests passing) |
+| `DSH Remote` PWA client (`packages/client`) | Source (client) | ✅ Done (Manifest, Service Worker, Mobile UI) |
+| Mobile Responsiveness Layer (`packages/client/public`) | Enhancer (CSS/JS) | ✅ Done (Drawer, Settings dropdown, touch scroll) |
 
 ## 4. Current status
 
-- ✅ **Documentation updated** — PWA-first architecture, Web Push, and multi-layered security/revocation captured.
-- ✅ **Phase 0 validated** — Tailscale + `tailscale serve` verified with Honor Pro 400 over HTTPS.
-- 🔄 **Checkpoint 1 in progress** — Monorepo workspace, `dsh-remote-bridge` plugin skeleton, and PWA client baseline assets.
+- ✅ **Phase 0 validated** — Tailscale + `tailscale serve` verified over HTTPS.
+- ✅ **Phase 1 complete** — PWA baseline, Service Worker cache-busting, and installability (Android Chrome WebAPK & iPad Safari).
+- ✅ **Phase 2 complete** — `dsh-remote-bridge` plugin injecting mobile responsiveness layer (`tapIndex`), floating hamburger drawer, zero-token SameSite=Lax auth, Settings top section dropdown (*General*, *Models*, *Agent Presets*, *Plugins*), and hardware-accelerated touch-momentum scrolling.
+- 📋 **Phase 3 planned** — Remote in-browser directory tree picker & GitHub clone integration.
 
-## 5. Environment facts (from the owner)
+## 5. Environment facts
 
 | Area | Fact |
 |---|---|
-| PC | MacBook Pro, macOS, personal machine, left running/reachable continuously |
-| Tailscale | Phone + Mac on the **same personal (free) tailnet**; `tailscale serve` HTTPS accepted; **Tailscale SSH not enabled** |
-| Phone | Honor Pro 400, Android 13/14 (iPad exists; works automatically via PWA) |
+| PC | MacBook Pro, macOS, personal machine, running `dsh web` |
+| Tailscale | Phone + Mac on the **same personal tailnet**; `tailscale serve` HTTPS; TLS cert managed by Tailscale |
+| Phone | Android 13/14 (Honor 400 Pro) running Chrome & PWA (iPad supported via Safari) |
 | DSH data | Default `~/.dsh` — read/write the **same** store the web app uses; no separate DB |
-| GitHub | Only **private repos the owner owns**; Mac-side GitHub auth **not yet configured**; app must never handle GitHub secrets |
-| Push Notifications | Web Push API via Service Worker + VAPID (Android Chrome native) |
-| iOS / iPad | Supported via Safari PWA add-to-home-screen |
+| GitHub | Private repos; credentials live on host machine; app never stores secrets |
 
-## 6. Decisions already made (do not re-litigate without a reason)
+## 6. Known limitations
+
+- **Remote Workspace Directory Picker**: Selecting a new directory from a mobile browser or PWA triggers the host browser/OS native folder picker dialog, which opens on the host PC rather than on the phone. Workspaces currently need to be created or opened on the host machine; mobile sessions can then select among any pre-existing workspaces. Remote directory tree navigation and creation directly in the web UI is deferred to Phase 3.
+
+## 7. Decisions already made (do not re-litigate without a reason)
 
 1. **PWA-first with Web Push, no native Kotlin/Compose app needed** — ADR-007.
 2. **Multi-layered security & instant device revocation** (Tailscale kill-switch + token/push revocation) — ADR-008.
@@ -68,21 +72,14 @@ dsh-app/
 5. **GitHub credentials live on the Mac** (`git clone` via the Mac's git); the app never stores them — ADR-005.
 6. **Data stays in `~/.dsh`** (parity with the web app) — ADR-006.
 
-## 7. Next steps (in order)
+## 8. Next steps (in order)
 
-1. **Phase 0** — ✅ Validated Tailscale + `tailscale serve` over HTTPS.
-2. **Phase 1** — PWA baseline & Web Push enablement (Checkpoint 1 & 2).
-3. **Phase 2** — `dsh-remote-bridge` plugin & mobile-first UI (Checkpoint 3 & 4).
-4. **Phase 3** — Workspace picker & GitHub clone (Checkpoint 5).
-5. **Phase 4** — Polish & hardening (Checkpoint 6).
+1. **Phase 3** — In-browser remote workspace directory tree picker & GitHub repo clone flow.
+2. **Phase 4** — Web Push notification triggers for background approval requests.
 
-## 8. Resume in a new session
+## 9. Resume in a new session
 
 Paste the block below into a fresh session to re-orient without re-reading this whole history:
 
-> We're building **DSH Remote** (repo `maximilian-moore/dsh-app`, local `/Users/max/Documents/DevProjects/dsh-app`): control a DeepSeek Harness on a home Mac from an Android phone (and iPad) over Tailscale using a Progressive Web App (PWA) with native Web Push. Read `PROJECT_STATUS.md` first, then `docs/01-requirements.md` through `docs/04-decisions.md`. Current state: Phase 0 validated; Checkpoint 1 (scaffolding & PWA baseline) implemented. Next is Checkpoint 2 (Web Push integration).
+> We're building **DSH Remote** (repo `maximilian-moore/dsh-app`): control a DeepSeek Harness on a home Mac from an Android phone (and iPad) over Tailscale using a Progressive Web App (PWA). Read `PROJECT_STATUS.md` first, then `docs/01-requirements.md` through `docs/04-decisions.md`. Current state: Phase 0, 1, and 2 complete (mobile drawer, Settings top dropdown, touch-momentum scrolling, zero-token SameSite=Lax cookie auth). Next is Phase 3 (in-browser remote directory picker).
 
-## 9. Open items / blockers
-
-- **Repo push auth (one-time):** this environment has no GitHub credentials; the owner must provide a Personal Access Token (or authenticate the `gh` CLI) to push and open the PR. Not a project blocker, just a setup step.
-- **GitHub repo-clone auth on the Mac** (for the workspace/GitHub feature): deferred to Phase 3; design assumes the Mac's existing `git` credentials (SSH agent / keychain / credential helper).
