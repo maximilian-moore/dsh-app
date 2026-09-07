@@ -14,6 +14,9 @@
     });
   }
 
+  // Silently refresh/mint SameSite=Lax DSH auth cookie for Android WebAPK launches
+  fetch('/mobile/api/auth', { method: 'POST' }).catch(() => {});
+
   // State
   const state = {
     activeSessionId: null,
