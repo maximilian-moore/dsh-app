@@ -38,14 +38,14 @@ dsh-app/
 | `docs/03-roadmap.md` | Documentation | ✅ Done (Updated to PWA) |
 | `docs/04-decisions.md` | Documentation | ✅ Done (Added ADR-007/008) |
 | `README.md`, `PROJECT_STATUS.md` | Documentation | ✅ Done |
-| `dsh-remote-bridge` plugin | Source (harness) | ⏳ Phase 2 |
-| `DSH Remote` PWA client | Source (client) | ⏳ Phase 1 (baseline) → Phase 2 (mobile UI) |
+| `dsh-remote-bridge` plugin | Source (harness) | ⏳ Scaffolding & core setup |
+| `DSH Remote` PWA client | Source (client) | ⏳ Baseline app shell & PWA assets |
 
 ## 4. Current status
 
 - ✅ **Documentation updated** — PWA-first architecture, Web Push, and multi-layered security/revocation captured.
-- ⏳ **Phase 0 pending** — Tailscale + `tailscale serve` validation has not been run yet.
-- ⏳ **No source code yet** — the PWA baseline and bridge plugin start in Phase 1+.
+- ✅ **Phase 0 validated** — Tailscale + `tailscale serve` verified with Honor Pro 400 over HTTPS.
+- 🔄 **Checkpoint 1 in progress** — Monorepo workspace, `dsh-remote-bridge` plugin skeleton, and PWA client baseline assets.
 
 ## 5. Environment facts (from the owner)
 
@@ -70,16 +70,17 @@ dsh-app/
 
 ## 7. Next steps (in order)
 
-1. **Phase 0** — validate Tailscale + `tailscale serve` (checklist in `docs/03-roadmap.md` §Phase 0).
-2. **Phase 1** — PWA baseline & Web Push enablement.
-3. **Phase 2** — `dsh-remote-bridge` plugin & mobile-first UI.
-4. **Phase 3** — Workspace picker & GitHub clone.
+1. **Phase 0** — ✅ Validated Tailscale + `tailscale serve` over HTTPS.
+2. **Phase 1** — PWA baseline & Web Push enablement (Checkpoint 1 & 2).
+3. **Phase 2** — `dsh-remote-bridge` plugin & mobile-first UI (Checkpoint 3 & 4).
+4. **Phase 3** — Workspace picker & GitHub clone (Checkpoint 5).
+5. **Phase 4** — Polish & hardening (Checkpoint 6).
 
 ## 8. Resume in a new session
 
 Paste the block below into a fresh session to re-orient without re-reading this whole history:
 
-> We're building **DSH Remote** (repo `maximilian-moore/dsh-app`, local `/Users/max/Documents/DevProjects/dsh-app`): control a DeepSeek Harness on a home Mac from an Android phone (and iPad) over Tailscale using a Progressive Web App (PWA) with native Web Push. Read `PROJECT_STATUS.md` first, then `docs/01-requirements.md` through `docs/04-decisions.md`. Current state: docs aligned to PWA-first; next is **Phase 0** (Tailscale + `tailscale serve` validation), then **Phase 1** (PWA baseline + Web Push). Key decisions: PWA-first (ADR-007), 3-layer security with instant Tailscale revocation (ADR-008), bridge plugin (ADR-003), SSE streaming (ADR-004), Git credentials on Mac (ADR-005).
+> We're building **DSH Remote** (repo `maximilian-moore/dsh-app`, local `/Users/max/Documents/DevProjects/dsh-app`): control a DeepSeek Harness on a home Mac from an Android phone (and iPad) over Tailscale using a Progressive Web App (PWA) with native Web Push. Read `PROJECT_STATUS.md` first, then `docs/01-requirements.md` through `docs/04-decisions.md`. Current state: Phase 0 validated; Checkpoint 1 (scaffolding & PWA baseline) implemented. Next is Checkpoint 2 (Web Push integration).
 
 ## 9. Open items / blockers
 

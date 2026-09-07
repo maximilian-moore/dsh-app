@@ -17,7 +17,7 @@ Control a DeepSeek Harness (DSH) instance running on a home PC, from a phone, ov
 - [x] Architecture — [docs/02-architecture.md](docs/02-architecture.md)
 - [x] Roadmap — [docs/03-roadmap.md](docs/03-roadmap.md)
 - [x] Decisions + effort — [docs/04-decisions.md](docs/04-decisions.md)
-- [ ] Phase 0: Tailscale + `tailscale serve` validation
+- [x] Phase 0: Tailscale + `tailscale serve` validation
 - [ ] Phase 1: PWA baseline + Web Push enablement
 - [ ] Phase 2: `dsh-remote-bridge` plugin & mobile-first UI
 - [ ] Phase 3: Workspace picker & GitHub clone integration

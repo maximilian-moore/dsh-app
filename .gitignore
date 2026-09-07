@@ -3,6 +3,8 @@
 
 # Node / plugin
 node_modules/
+dist/
+coverage/
 *.tsbuildinfo
 
 # Android
