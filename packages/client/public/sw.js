@@ -1,5 +1,5 @@
 // DSH Remote Service Worker
-const CACHE_NAME = 'dsh-remote-v2';
+const CACHE_NAME = 'dsh-remote-v4';
 const PRECACHE_URLS = [
   '/mobile/',
   '/mobile/index.html',
@@ -31,8 +31,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through for API and SSE endpoints
-  if (event.request.url.includes('/mobile/api/')) {
+  // Pass-through for API, SSE, and mobile enhancer scripts (always bypass SW cache)
+  if (event.request.url.includes('/mobile/api/') || event.request.url.includes('dsh-mobile-enhancer')) {
     return;
   }
 

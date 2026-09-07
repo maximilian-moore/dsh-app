@@ -97,7 +97,7 @@ export function handleStaticRequest(
   };
 
   // Special headers for Service Worker and manifest
-  if (targetPath.endsWith('sw.js')) {
+  if (targetPath.endsWith('sw.js') || targetPath.includes('dsh-mobile-enhancer')) {
     headers['Service-Worker-Allowed'] = '/mobile/';
     headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
   } else if (isIndexFallback || targetPath.endsWith('index.html')) {
