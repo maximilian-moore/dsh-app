@@ -129,6 +129,11 @@
     font-size: 16px !important; /* Prevents auto-zoom in iOS Safari / Android Chrome */
   }
 
+  body.dsh-dialog-open .dsh-mobile-hamburger-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
   /* 5. Settings Modal Full-Screen on Mobile */
   /* Overlay */
   [class*="_overlay"]:has([role="dialog"]),
@@ -162,8 +167,9 @@
 
   /* Panel - Take up full screen */
   [role="dialog"][class*="_panel"],
-  body.dsh-dialog-open [role="dialog"],
-  div:has(> [class*="_close"])[class*="_panel"] {
+  body.dsh-dialog-open [role="dialog"][class*="_panel"],
+  div:has(> [class*="_close"])[class*="_panel"],
+  [role="dialog"]:has(> nav) {
     position: fixed !important;
     inset: 0 !important;
     top: 0 !important;
@@ -186,66 +192,113 @@
     transform: none !important;
   }
 
-  /* Navigation Header at Top */
-  [role="dialog"] [class*="_nav"],
-  body.dsh-dialog-open [class*="_nav"] {
+  /* Top Navigation Bar */
+  [role="dialog"] > nav,
+  [role="dialog"] > [class*="_nav"]:not([class*="_navTitle"]):not([class*="_navList"]):not([class*="_navCell"]):not([class*="_navIcon"]):not([class*="_navLabel"]) {
     width: 100% !important;
-    height: auto !important;
-    padding: 14px 14px 6px !important;
-    flex: none !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 10px !important;
-    border-bottom: 1px solid var(--dsw-alias-border-l3, rgba(255, 255, 255, 0.08)) !important;
-    background: var(--dsw-alias-bg-layer-2, #181a20) !important;
-  }
-
-  [role="dialog"] [class*="_navTitle"],
-  body.dsh-dialog-open [class*="_navTitle"] {
-    font-size: 18px !important;
-    font-weight: 600 !important;
-    padding: 0 4px !important;
-    margin-right: 48px !important; /* Space for the absolute X button */
-  }
-
-  /* Navigation tabs as a horizontal scrollable strip */
-  [role="dialog"] [class*="_navList"],
-  body.dsh-dialog-open [class*="_navList"] {
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: 56px !important;
+    padding: 0 54px 0 16px !important; /* Space on right for fixed Close (X) button */
+    flex: 0 0 56px !important;
     display: flex !important;
     flex-direction: row !important;
-    gap: 6px !important;
-    overflow-x: auto !important;
-    scrollbar-width: none !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding-bottom: 6px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    border-bottom: 1px solid var(--dsw-alias-border-l3, rgba(255, 255, 255, 0.08)) !important;
+    background: var(--dsw-alias-bg-layer-2, #181a20) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
   }
 
-  [role="dialog"] [class*="_navList"]::-webkit-scrollbar,
-  body.dsh-dialog-open [class*="_navList"]::-webkit-scrollbar {
+  [role="dialog"] [class*="_navTitle"] {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: var(--dsw-alias-label-primary, #ffffff) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    display: block !important;
+    line-height: normal !important;
+  }
+
+  /* Hide desktop vertical navigation button list on mobile; replaced by mobile dropdown */
+  [role="dialog"] [class*="_navList"] {
     display: none !important;
   }
 
-  [role="dialog"] [class*="_navCell"],
-  body.dsh-dialog-open [class*="_navCell"] {
-    flex: none !important;
-    height: 36px !important;
-    padding: 6px 12px !important;
-    font-size: 13px !important;
-    border-radius: 10px !important;
-    white-space: nowrap !important;
+  /* Injected Mobile Settings Section Dropdown */
+  .dsh-mobile-settings-nav {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
   }
 
-  /* Content Column */
-  [role="dialog"] [class*="_content"],
-  body.dsh-dialog-open [class*="_content"] {
-    flex: 1 !important;
+  .dsh-mobile-settings-select-wrap {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
     width: 100% !important;
-    height: 100% !important;
+    max-width: 200px !important;
+  }
+
+  .dsh-mobile-settings-select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    width: 100% !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--dsw-alias-label-primary, #ffffff) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 10px !important;
+    padding: 0 32px 0 12px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    font-family: inherit !important;
+    cursor: pointer !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+    transition: background 0.15s ease, border-color 0.15s ease !important;
+  }
+
+  .dsh-mobile-settings-select:focus {
+    border-color: var(--dsw-alias-brand-primary, #4d82f3) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .dsh-mobile-settings-select option {
+    background: #1e2128 !important;
+    color: #ffffff !important;
+    padding: 8px 12px !important;
+  }
+
+  .dsh-mobile-settings-select-icon {
+    position: absolute !important;
+    right: 10px !important;
+    pointer-events: none !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Content Column: explicitly constrained to remaining viewport height */
+  [role="dialog"] > div[class*="_content"] {
+    flex: 1 1 0% !important;
+    width: 100% !important;
+    height: calc(100dvh - 56px) !important;
+    max-height: calc(100dvh - 56px) !important;
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     position: relative !important;
     overflow: hidden !important;
+    box-sizing: border-box !important;
   }
 
   /* Close (X) Button - Positioned in top-right corner of dialog */
@@ -254,50 +307,82 @@
     position: fixed !important;
     top: 10px !important;
     right: 12px !important;
-    width: 38px !important;
-    height: 38px !important;
+    width: 36px !important;
+    height: 36px !important;
     border-radius: 50% !important;
-    background: rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     color: var(--dsw-alias-label-primary, #ffffff) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    z-index: 2020 !important;
+    z-index: 2060 !important;
     cursor: pointer !important;
-    border: none !important;
     transition: background 0.15s ease, transform 0.15s ease !important;
   }
 
   [role="dialog"] [class*="_close"]:active,
   body.dsh-dialog-open [class*="_close"]:active {
-    background: rgba(255, 255, 255, 0.25) !important;
+    background: rgba(255, 255, 255, 0.22) !important;
     transform: scale(0.92) !important;
   }
 
   [role="dialog"] [class*="_header"],
   body.dsh-dialog-open [class*="_header"] {
+    flex: 0 0 auto !important;
     height: auto !important;
     min-height: 0 !important;
-    padding: 4px 14px !important;
+    padding: 6px 16px !important;
     display: flex !important;
     align-items: center !important;
+    justify-content: flex-end !important;
+    box-sizing: border-box !important;
   }
 
-  /* Options / Body scroll area */
+  [role="dialog"] [class*="_actions"] {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-right: 48px !important; /* Avoid colliding with fixed close button */
+  }
+
+  /* Options / Body scroll area - guaranteed scrollable with touch momentum */
   [role="dialog"] [class*="_options"],
   body.dsh-dialog-open [class*="_options"] {
-    flex: 1 !important;
+    flex: 1 1 0% !important;
+    height: 100% !important;
     min-height: 0 !important;
-    padding: 12px 16px 40px !important;
-    overflow-y: auto !important;
+    padding: 14px 16px 110px 16px !important; /* 110px bottom padding ensures lowest items remain fully accessible */
+    overflow-y: scroll !important;
     -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    touch-action: pan-y !important;
+    box-sizing: border-box !important;
   }
 
   /* General settings rows and cards responsive wrapping */
-  [role="dialog"] [class*="_options"] table,
-  [role="dialog"] [class*="_options"] [class*="_row"],
-  [role="dialog"] [class*="_options"] [class*="_card"] {
+  [role="dialog"] [class*="_options"] > * {
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
+
+  [role="dialog"] [class*="_options"] table,
+  [role="dialog"] [class*="_options"] [class*="_row"],
+  [role="dialog"] [class*="_options"] [class*="_card"],
+  [role="dialog"] [class*="_options"] [class*="_section"] {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Tighten excessive right padding in row text on mobile */
+  [role="dialog"] [class*="_options"] [class*="_rowText"] {
+    padding-right: 12px !important;
+  }
 }
+
+/* Hide mobile settings nav dropdown on desktop */
+.dsh-mobile-settings-nav {
+  display: none;
+}
+

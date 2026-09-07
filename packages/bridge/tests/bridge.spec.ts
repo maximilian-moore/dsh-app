@@ -198,6 +198,25 @@ describe('dsh-remote-bridge plugin', () => {
       expect(jsRes.headers['content-type']).toContain('application/javascript');
     });
 
+    it('serves dsh-mobile-enhancer.css with mobile settings dropdown and scroll fixes', async () => {
+      const res = await simulateRequest(handler, { url: '/mobile/dsh-mobile-enhancer.css' });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toContain('text/css');
+      expect(res.body).toContain('dsh-mobile-settings-select');
+      expect(res.body).toContain('touch-action: pan-y');
+      expect(res.body).toContain('calc(100dvh - 56px)');
+      expect(res.body).toContain('-webkit-overflow-scrolling: touch');
+    });
+
+    it('serves dsh-mobile-enhancer.js with settings section dropdown enhancer', async () => {
+      const res = await simulateRequest(handler, { url: '/mobile/dsh-mobile-enhancer.js' });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toContain('application/javascript');
+      expect(res.body).toContain('setupSettingsMobileNav');
+      expect(res.body).toContain('dsh-mobile-settings-select');
+      expect(res.body).toContain('aria-current');
+    });
+
     it('answers GET /mobile/api/models with available model options', async () => {
       const response = await simulateRequest(handler, { url: '/mobile/api/models' });
       expect(response.statusCode).toBe(200);
