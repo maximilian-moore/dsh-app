@@ -1,5 +1,5 @@
 // DSH Remote Service Worker
-const CACHE_NAME = 'dsh-remote-v1';
+const CACHE_NAME = 'dsh-remote-v2';
 const PRECACHE_URLS = [
   '/mobile/',
   '/mobile/index.html',
