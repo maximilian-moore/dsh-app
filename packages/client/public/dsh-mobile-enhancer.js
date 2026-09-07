@@ -90,13 +90,12 @@
         const sidebar = document.querySelector('[class*="_sidebarCol"]');
         if (!sidebar || !sidebar.contains(target)) return;
 
-        // A. If the user clicks the toggle button while the sidebar is already wide/expanded:
-        // On mobile, the user intends to CLOSE the drawer, NOT collapse DSH into an unusable 56px rail!
+        // A. If clicking the sidebar's collapse button while wide/expanded:
+        // On mobile, the user intends to CLOSE the drawer, NOT collapse DSH into a 56px rail!
         const toggleBtn = target.closest('button[class*="_toggle"]');
         if (toggleBtn && window.innerWidth <= 768) {
           const hasRail = sidebar.querySelector('[class*="_railMark"]');
           if (!hasRail) {
-            // It's in expanded mode; prevent collapse and close mobile drawer instead
             e.preventDefault();
             e.stopPropagation();
             document.body.classList.remove('dsh-mobile-sidebar-open');
@@ -104,12 +103,11 @@
           }
         }
 
-        // B. If clicking Settings trigger in the sidebar, close the mobile drawer so Settings modal takes full screen
+        // B. If clicking Settings trigger in the sidebar:
+        // Let the modal open on top of the drawer (z-index: 2005). Do not close drawer yet
+        // so ancestor elements remain mounted and active.
         const settingsTrigger = target.closest('[class*="_settingsArea"], [class*="_triggerRow"], [class*="_trigger"]');
         if (settingsTrigger) {
-          setTimeout(() => {
-            document.body.classList.remove('dsh-mobile-sidebar-open');
-          }, 80);
           return;
         }
 
@@ -122,6 +120,23 @@
       },
       true // Capture phase
     );
+
+    // Watch for dialog open/close in DOM
+    const observer = new MutationObserver(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      if (dialog) {
+        if (!document.body.classList.contains('dsh-dialog-open')) {
+          document.body.classList.add('dsh-dialog-open');
+        }
+      } else {
+        if (document.body.classList.contains('dsh-dialog-open')) {
+          document.body.classList.remove('dsh-dialog-open');
+          // When dialog closes, close sidebar drawer so user is back on chat screen
+          document.body.classList.remove('dsh-mobile-sidebar-open');
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
     // Close on Escape key
     window.addEventListener('keydown', (e) => {
