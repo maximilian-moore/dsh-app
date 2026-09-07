@@ -6,8 +6,8 @@ Effort figures are for one developer and are planning estimates, not commitments
 
 **Goal:** prove the phone can reach the web GUI over Tailscale before writing any client code.
 
-- [ ] Ensure Tailscale is running on Mac + Honor Pro 400 (both on same personal tailnet).
-- [ ] Determine Tailscale FQDN (e.g. `macbook-pro-von-max.<tailnet>.ts.net`).
+- [ ] Ensure Tailscale is running on Mac + mobile device (both on same personal tailnet).
+- [ ] Determine Tailscale FQDN (e.g. `<device-name>.<tailnet>.ts.net`).
 - [ ] Run `dsh web --trusted-host <mac>.<tailnet>.ts.net --no-open`.
 - [ ] Run `tailscale serve --bg http://127.0.0.1:3080`.
 - [ ] On the phone browser (Android Chrome), open `https://<mac>.<tailnet>.ts.net/?token=<launch-token>`.

@@ -8,8 +8,13 @@ Control a DeepSeek Harness (DSH) instance running on a home PC, from a phone, ov
 
 ## What's here
 
-1. **`dsh-remote-bridge`** (Phase 2) — a reusable DeepSeek Harness Host plugin that exposes a small, stable "mobile" API (session list / conversation history, streaming, approvals, workspace + GitHub clone, device auth, Web Push VAPID) on top of the harness's existing services. Designed so **any** DSH user can drop it into their composition.
-2. **`DSH Remote`** (Phase 1/2) — the Progressive Web App (PWA) client (installable to home screen via Android Chrome WebAPK & iPad Safari, with native Web Push for approvals).
+1. **`dsh-remote-bridge`** — a reusable DeepSeek Harness Host plugin (`packages/bridge`) that hooks `ctx.webServer.tapIndex()` to inject a mobile responsiveness layer into the official DSH Web App, mints signed `SameSite=Lax` cookies for zero-token browser/PWA authentication, and exposes the `/mobile` PWA endpoints.
+2. **`DSH Remote Mobile Enhancer`** — injected client assets (`dsh-mobile-enhancer.css` and `dsh-mobile-enhancer.js`) providing:
+   - Sliding hamburger drawer with session history.
+   - Dynamic top section dropdown (*General*, *Models*, *Agent Presets*, *Plugins*) for Settings.
+   - Smooth, hardware-accelerated touch-momentum scrolling for all settings options.
+   - Auto-expanding sidebar controls without collapsed rail trapping.
+3. **`DSH Remote PWA`** (`packages/client`) — installable Progressive Web App with standalone manifest, cache-busting service worker, and mobile-first layout.
 
 ## Status
 
@@ -18,9 +23,13 @@ Control a DeepSeek Harness (DSH) instance running on a home PC, from a phone, ov
 - [x] Roadmap — [docs/03-roadmap.md](docs/03-roadmap.md)
 - [x] Decisions + effort — [docs/04-decisions.md](docs/04-decisions.md)
 - [x] Phase 0: Tailscale + `tailscale serve` validation
-- [ ] Phase 1: PWA baseline + Web Push enablement
-- [ ] Phase 2: `dsh-remote-bridge` plugin & mobile-first UI
-- [ ] Phase 3: Workspace picker & GitHub clone integration
+- [x] Phase 1: PWA baseline + installability (Android Chrome WebAPK & iOS/iPad Safari)
+- [x] Phase 2: `dsh-remote-bridge` plugin & official DSH mobile responsiveness layer
+- [ ] Phase 3: In-browser remote workspace directory picker & GitHub clone integration
+
+## Known Limitations
+
+- **Remote Workspace Directory Picker**: Selecting a new directory from a mobile browser or PWA triggers the host browser/OS native folder picker dialog (via the File System Access API or input dialog), which opens on the host PC rather than on the phone. Workspaces currently need to be created or opened on the host machine; mobile sessions can then select among any pre-existing workspaces. Remote directory tree navigation and creation directly in the web UI will be addressed in Phase 3.
 
 ## Documents
 
@@ -31,3 +40,4 @@ Control a DeepSeek Harness (DSH) instance running on a home PC, from a phone, ov
 | [docs/02-architecture.md](docs/02-architecture.md) | End-to-end architecture (v1 WebView shell + v2 bridge/native client), transport, auth/re-auth, workspace/GitHub model, security, reusability. |
 | [docs/03-roadmap.md](docs/03-roadmap.md) | Phased build plan with deliverables and rough effort. |
 | [docs/04-decisions.md](docs/04-decisions.md) | Architecture Decision Records, incl. the Flutter vs Android-native decision and effort estimate. |
+
