@@ -3,15 +3,21 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { BridgeConfig } from './types.js';
 import { handleHealthRequest } from './routes/health.js';
 import { handleStaticRequest, resolveDefaultClientDir } from './routes/static.js';
+import { handleSessionsRequest } from './routes/sessions.js';
+import { handleModelsRequest } from './routes/models.js';
+import { handleWorkspacesRequest } from './routes/workspaces.js';
 
 export * from './types.js';
 export { handleHealthRequest } from './routes/health.js';
 export { handleStaticRequest, resolveDefaultClientDir } from './routes/static.js';
+export { handleSessionsRequest } from './routes/sessions.js';
+export { handleModelsRequest } from './routes/models.js';
+export { handleWorkspacesRequest } from './routes/workspaces.js';
 
 export const name = 'dsh-remote-bridge';
 export const inject = ['webServer'];
 
-export function createBridgeHandler(config?: BridgeConfig) {
+export function createBridgeHandler(ctx?: Context, config?: BridgeConfig) {
   const clientDir = config?.clientDistPath || resolveDefaultClientDir();
 
   return async function bridgeHttpHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -25,12 +31,33 @@ export function createBridgeHandler(config?: BridgeConfig) {
       }
     }
 
-    // 2. Static PWA asset serving
+    // 2. Sessions listing
+    if (pathname === '/mobile/api/sessions') {
+      if (await handleSessionsRequest(req, res, ctx)) {
+        return;
+      }
+    }
+
+    // 3. Models listing
+    if (pathname === '/mobile/api/models') {
+      if (handleModelsRequest(req, res)) {
+        return;
+      }
+    }
+
+    // 4. Workspaces listing
+    if (pathname === '/mobile/api/workspaces') {
+      if (handleWorkspacesRequest(req, res, config)) {
+        return;
+      }
+    }
+
+    // 5. Static PWA asset serving
     if (handleStaticRequest(req, res, clientDir)) {
       return;
     }
 
-    // 3. Fallback for unhandled /mobile/api routes (will be implemented in next checkpoints)
+    // 6. Fallback for unhandled /mobile/api routes
     if (pathname.startsWith('/mobile/api/')) {
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Endpoint not implemented', path: pathname }));
@@ -44,9 +71,8 @@ export function createBridgeHandler(config?: BridgeConfig) {
 }
 
 export function apply(ctx: Context, config?: BridgeConfig): () => void {
-  const handler = createBridgeHandler(config);
+  const handler = createBridgeHandler(ctx, config);
 
-  // Register prefix route under /mobile on the host webServer
   // @ts-expect-error Cordis context carries webServer at runtime
   const webServer = ctx.webServer;
   if (!webServer || typeof webServer.register !== 'function') {

@@ -15,6 +15,7 @@
 </head>
 <body>
   <div id="app" class="app-container">
+    <!-- Header -->
     <header class="app-header">
       <button id="btn-toggle-sessions" class="icon-btn" aria-label="Sessions menu">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
@@ -25,37 +26,67 @@
       </button>
       <div class="header-title">
         <span class="app-name">DSH Remote</span>
-        <span id="session-title" class="sub-title">Connecting...</span>
+        <span id="session-title" class="sub-title">No Active Session</span>
       </div>
-      <div class="header-status">
-        <span id="status-badge" class="status-indicator online" title="Connected"></span>
+      <div class="header-status" id="header-status-container">
+        <span id="status-badge" class="status-indicator online"></span>
+        <span id="status-text" class="status-label">Ready</span>
       </div>
     </header>
 
+    <!-- Sessions Drawer -->
     <div id="sessions-drawer" class="drawer hidden">
       <div class="drawer-header">
-        <h2>Sessions</h2>
+        <h2>Past Sessions</h2>
         <button id="btn-close-drawer" class="icon-btn" aria-label="Close drawer">✕</button>
       </div>
       <div class="drawer-actions">
-        <button id="btn-new-session" class="btn btn-primary">+ New Session</button>
+        <button id="btn-new-session" class="btn btn-primary">+ Start New Session</button>
       </div>
       <div id="sessions-list" class="sessions-list">
         <div class="loading-placeholder">Loading sessions...</div>
       </div>
     </div>
 
+    <!-- Main Chat / Streaming View -->
     <main id="chat-stream" class="chat-stream">
-      <div class="welcome-card">
+      <div id="welcome-view" class="welcome-card">
         <h3>DSH Mobile Control</h3>
-        <p>Connected securely via Tailscale.</p>
-        <p class="hint">Select a session from the menu or start a new prompt.</p>
+        <p>Connected securely to MacBook Pro over Tailscale.</p>
+        <div class="welcome-chips">
+          <div class="chip">🔒 Loopback-Only</div>
+          <div class="chip">⚡ WireGuard Mesh</div>
+          <div class="chip">📱 Mobile-First</div>
+        </div>
+        <p class="hint">Select a previous session from the drawer (top-left) or enter instructions below.</p>
       </div>
+      <div id="messages-container" class="messages-container hidden"></div>
     </main>
 
+    <!-- Bottom Input Dock with Model & Workspace Controls -->
     <footer class="input-dock">
+      <!-- Toolbar with Model & Workspace selectors -->
+      <div class="composer-toolbar">
+        <div class="selector-group">
+          <!-- Workspace Chip -->
+          <div id="workspace-selector-btn" class="toolbar-pill" title="Current Workspace">
+            <span class="pill-icon">📁</span>
+            <span id="current-workspace-label" class="pill-label">DevProjects</span>
+            <select id="workspace-select" class="native-dropdown" aria-label="Select Workspace"></select>
+          </div>
+
+          <!-- Model Chip -->
+          <div id="model-selector-btn" class="toolbar-pill" title="Selected Model">
+            <span class="pill-icon">🤖</span>
+            <span id="current-model-label" class="pill-label">deepseek-v4-flash</span>
+            <select id="model-select" class="native-dropdown" aria-label="Select Model"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text input container -->
       <div class="dock-container">
-        <textarea id="prompt-input" rows="1" placeholder="Send a instruction..." enterkeyhint="send"></textarea>
+        <textarea id="prompt-input" rows="1" placeholder="Ask DeepSeek Harness or give instructions..." enterkeyhint="send"></textarea>
         <button id="btn-send" class="send-btn" aria-label="Send">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>

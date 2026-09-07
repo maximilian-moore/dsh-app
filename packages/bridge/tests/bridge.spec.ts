@@ -134,6 +134,38 @@ describe('dsh-remote-bridge plugin', () => {
       expect(jsRes.headers['content-type']).toContain('application/javascript');
     });
 
+    it('answers GET /mobile/api/models with available model options', async () => {
+      const response = await simulateRequest(handler, { url: '/mobile/api/models' });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('application/json');
+
+      const data = JSON.parse(response.body);
+      expect(data.defaultModel).toBeDefined();
+      expect(Array.isArray(data.models)).toBe(true);
+      expect(data.models.length).toBeGreaterThan(0);
+      expect(data.models.some((m: any) => m.id.includes('deepseek'))).toBe(true);
+    });
+
+    it('answers GET /mobile/api/workspaces with workspace directories', async () => {
+      const response = await simulateRequest(handler, { url: '/mobile/api/workspaces' });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('application/json');
+
+      const data = JSON.parse(response.body);
+      expect(data.current).toBeDefined();
+      expect(Array.isArray(data.workspaces)).toBe(true);
+      expect(data.workspaces.length).toBeGreaterThan(0);
+    });
+
+    it('answers GET /mobile/api/sessions with sessions list', async () => {
+      const response = await simulateRequest(handler, { url: '/mobile/api/sessions' });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('application/json');
+
+      const data = JSON.parse(response.body);
+      expect(Array.isArray(data.sessions)).toBe(true);
+    });
+
     it('blocks directory traversal attempts', async () => {
       const res = await simulateRequest(handler, { url: '/mobile/../../package.json' });
       expect([403, 404]).toContain(res.statusCode);
@@ -141,3 +173,4 @@ describe('dsh-remote-bridge plugin', () => {
     });
   });
 });
+
