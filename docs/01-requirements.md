@@ -22,12 +22,12 @@ The owner runs DeepSeek Harness (`dsh web`) on a MacBook Pro at home and wants t
 | Tailscale serve | Owner accepts `tailscale serve` HTTPS (tailnet-only TLS). |
 | PC | MacBook Pro, macOS. Personal machine, **no VPN/firewall/corporate network**. |
 | PC availability | PC will be left running/reachable continuously. |
-| Phone | Honor Pro 400, **Android 13 or 14**. |
-| Push notifications | "Nice to have, not needed" for v1 — defer. |
-| iOS | No iPhone; an iPad is available. iOS support deferred (see ADR-002). |
+| Phone | Honor Pro 400, **Android 13 or 14** (Chrome WebAPK PWA). |
+| Push notifications | **Web Push API** (W3C standard) via Service Worker + VAPID (native in Android Chrome). |
+| iOS / iPad | iPad available; works immediately via Safari PWA. |
 | DSH data | Default `$DSH_HOME` (`~/.dsh`) — the app must read/write the **same** data the PC/web app uses; no separate store. |
 | GitHub | Only **private repos the owner owns**. GitHub auth is **not yet configured** on the Mac; will be set up later. The app must not handle GitHub secrets itself. |
-| App build order | Owner is fine to ship a **WebView shell first (v1)**, then a fully native Compose UI (v2) if v1 doesn't meet the requirements. |
+| Client Delivery | **Progressive Web App (PWA)** — installable to home screen via Chrome, instant updates, zero Play Store overhead. |
 
 ## 4. Functional requirements
 
@@ -46,13 +46,14 @@ The owner runs DeepSeek Harness (`dsh web`) on a MacBook Pro at home and wants t
 - FR3.2 Open a conversation and view its messages/events.
 - FR3.3 Continue an existing conversation (resume) and start a new one.
 
-### FR4 — Driving the agent
+### FR4 — Driving the agent & Web Push
 - FR4.1 Send a prompt to a session.
 - FR4.2 Stream the response/tool activity as it happens.
 - FR4.3 Approve or reject agent actions (tool calls / approvals).
+- FR4.4 Deliver Web Push notifications for pending approvals and task completion.
 
 ### FR5 — Workspace & GitHub
-- FR5.1 Set a session's working directory to a local folder on the Mac.
+- FR5.1 Set a session's working directory to a local folder on the Mac (restricted to whitelisted paths).
 - FR5.2 "Connect to a GitHub repo": clone (or open an already-cloned) private repo on the Mac and point the session at it. GitHub credentials are the Mac's own (SSH agent / macOS keychain / credential helper); the app never handles them.
 
 ### FR6 — Reusability (plugin)
@@ -62,15 +63,14 @@ The owner runs DeepSeek Harness (`dsh web`) on a MacBook Pro at home and wants t
 ## 5. Non-functional requirements
 
 - **NFR1 Data locality** — session data stays in `~/.dsh`; the bridge reads the same persistence the web app reads (no copy/fork).
-- **NFR2 Security** — defense in depth: Tailscale membership + harness cookie/device key; secrets in Android Keystore.
+- **NFR2 Security & Revocation** — defense in depth: Tailscale membership + harness cookie/device key. Immediate revocation via Tailscale admin console and device key removal.
 - **NFR3 Stability** — the app targets the bridge's stable API, not the web app's private internal RPC, so harness upgrades don't break the app.
 - **NFR4 Open-source friendliness** — clean, documented plugin contract and app code; MIT-style licensing; no owner-specific secrets in the repo.
-- **NFR5 Cost-conscious** — keep v1 minimal; defer notifications and iOS.
+- **NFR5 Cost & Friction conscious** — PWA eliminates app stores, developer license fees, and native compilation cycles.
 
-## 6. Out of scope for v1 (deferred)
+## 6. Out of scope
 
-- Push notifications (FCM/APNs).
-- iOS build (see ADR-002).
+- Google Play Store / Apple App Store publishing (explicitly avoided; PWA only).
+- Proprietary push gateways (FCM/APNs SDKs avoided in favor of standard W3C Web Push).
 - Multi-user / team tailnets and shared device ACLs.
-- Fully native chat UI (v2).
 - Standalone public-internet access (explicitly not wanted — Tailscale-only).

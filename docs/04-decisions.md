@@ -1,39 +1,24 @@
 # 04 — Decisions (ADR)
 
-## ADR-001 — Ship a WebView shell (v1) before a native client (v2)
+## ADR-001 — [SUPERSEDED by ADR-007] Ship a WebView shell (v1) before a native client (v2)
 
-**Decision:** v1 is a thin Android WebView around the existing web GUI; v2 is a native Compose client over a bridge API.
+*Superseded by ADR-007: Shifted to a PWA-first architecture.*
 
-**Why:** validates the entire Tailscale + auth + harness path in days, not weeks, and the owner explicitly accepted this de-risking order. The WebView shell is small enough that little work is thrown away.
+## ADR-002 — [SUPERSEDED by ADR-007] Android-native (Kotlin/Compose) now; defer Flutter/iOS
 
-**Trade-off:** v1 cannot deliver workspace/GitHub selection (not in the web GUI) or a native conversation-list UX; those arrive in v2.
+*Superseded by ADR-007: Shifted to a PWA-first architecture.*
 
-## ADR-002 — Android-native (Kotlin/Compose) now; defer Flutter/iOS
+### Effort estimate (PWA vs Native)
 
-**Decision:** build the client in Kotlin + Jetpack Compose for Android first. Do **not** adopt Flutter now for iOS. Keep the bridge API as the cross-platform contract so a Flutter/SwiftUI client can be added later without touching the harness.
-
-**Context:** owner has only an Android phone (Honor Pro 400, Android 13/14) and an iPad — no iPhone. Wants to possibly open-source for iOS users later.
-
-**Why not Flutter now:**
-- The only test device for phone form-factor is Android; the iPad gives no iPhone signal. iOS development also requires an Apple Developer account (~$99/yr) and macOS/Xcode, and iPad-only testing leaves the phone UX unverified.
-- The largest reusable asset is the **bridge plugin, which is framework-agnostic** — the framework choice affects only the client half.
-- v1 is a WebView shell; its cost is near-zero in either framework, so the Flutter decision is really a **v2** decision that can be made later with more information.
-- Flutter adds platform-channel work anyway for the parts that matter here (Tailscale VPN interop, Keystore, notifications, SSE).
-
-**Revisit trigger:** if iOS support becomes a real, near-term goal (an iPhone is available, or the owner is already productive in Dart/Flutter), re-open this decision at Phase 3.
-
-### Effort estimate
-
-| Work | Framework | Estimate (1 dev) |
+| Work | Approach | Estimate (1 dev) |
 |---|---|---|
-| Phase 0 (Tailscale + serve validation) | n/a | 0.5–1 day |
-| Phase 1 (v1 WebView shell) | Kotlin | 2–4 days |
-| Phase 2 (bridge plugin) | harness (framework-agnostic) | 2–3 weeks |
-| Phase 3 (v2 native client) | Kotlin/Compose | 3–5 weeks |
-| Phase 3 in Flutter instead | Flutter | +30–50% on the client half (≈ +1–2.5 weeks), plus iOS setup: Apple account, Xcode, iPad-only testing gap, APNs if notifications are added |
-| Phase 4 (notifications) | either | 2–5 days (plus FCM/APNs setup) |
+| Phase 0 (Tailscale + serve validation) | Tailscale + DSH web | 0.5–1 day |
+| Phase 1 (PWA enablement + Web Push) | Web App Manifest + Service Worker + VAPID | 1–2 days |
+| Phase 2 (Mobile-first UI + Bridge plugin) | Lightweight PWA frontend + `/mobile/*` API | 3–5 days |
+| Phase 3 (Hardening & Git/Workspace) | Workspace boundaries + Git clone workflow | 2–3 days |
+| *Total effort to fully working mobile solution:* | **PWA-first** | **~1–2 weeks** (vs. 5–8 weeks for native Compose) |
 
-**Bottom line:** Flutter now would cost roughly +30–50% on the client and add real iOS overhead for an audience the owner does not have yet, while the bridge already makes "add iOS later" cheap. Recommend **Kotlin/Compose now, Flutter as a later, reversible choice.**
+**Bottom line:** A PWA installed from Chrome on Android (WebAPK) provides ~90% of native app feel, full-screen standalone UI, native Web Push notifications via Service Worker, and instant updates with zero release cycles. It also runs immediately on the iPad.
 
 ## ADR-003 — Bridge plugin, not the web app's private RPC
 
@@ -45,7 +30,7 @@
 
 **Decision:** use Server-Sent Events (`GET /mobile/stream`) for streaming responses/events, not a custom WebSocket.
 
-**Why:** the harness's gzip middleware already special-cases `text/event-stream`; OkHttp consumes SSE without a WebSocket client; it works cleanly through `tailscale serve`. WebSocket remains an option if bidirectional client→server signaling is later needed.
+**Why:** the harness's gzip middleware already special-cases `text/event-stream`; browser `EventSource` or fetch streams consume SSE natively; it works cleanly through `tailscale serve`.
 
 ## ADR-005 — GitHub credentials live on the Mac, not the app
 
@@ -58,3 +43,26 @@
 **Decision:** the bridge reads/writes the harness's standard `$DSH_HOME` session store (no separate mobile database).
 
 **Why:** owner requires parity with the PC/web app ("all data goes in the same place"). The bridge wraps `session-query`/persistence rather than duplicating it.
+
+## ADR-007 — PWA-first architecture with Web Push
+
+**Decision:** Build the mobile client as a Progressive Web App (PWA) served over Tailscale HTTPS instead of building a native Kotlin/Compose or Flutter app. Web Push notifications are handled via the W3C Web Push API (Service Worker + VAPID) rather than Firebase Cloud Messaging (FCM).
+
+**Why:**
+- **Zero release cycle & instant updates:** Any change to frontend code on the Mac is live upon reload. No APK compiling, sideloading, or Play Store review.
+- **Native feel on Android:** Installed via Chrome on Android, the PWA generates a WebAPK with its own launcher icon, full-screen standalone window (no address bar), theme colors, and recent apps entry.
+- **Web Push works natively:** Chrome on Android supports W3C Web Push without Google Play Services native code or FCM console configuration.
+- **Cross-platform for free:** Runs on both the Honor Pro 400 and the iPad without platform-specific code.
+- **Time savings:** Reduces client delivery time from ~4–6 weeks down to ~3–5 days.
+
+## ADR-008 — Multi-layered security and instant device revocation
+
+**Decision:** Rely on a 3-layer defense-in-depth model:
+1. **Network Layer (Tailscale Zero Trust):** Tailnet WireGuard tunnel + `tailscale serve` TLS. No public ports; no `tailscale funnel`.
+2. **Application Layer (Cookie / Device Pairing Token):** Signed browser cookies minted from a process launch token or device authorization token.
+3. **Storage & Execution Boundaries:** Workspace roots are restricted to whitelisted directories (e.g. `~/DevProjects`); commands cannot execute outside authorized boundaries without explicit approval.
+
+**Lost Phone Revocation Protocol:**
+- **Instant Kill-Switch (Network):** If the phone is lost, remove or disable `honor-400-pro` in the [Tailscale Admin Console](https://login.tailscale.com/admin/machines). Access is cut off immediately at the WireGuard packet level.
+- **Application Revocation:** Remove the device token from `~/.dsh/paired_devices.json` or restart `dsh web` (and rotate cookie secret in `~/.dsh`) to invalidate all existing cookies.
+- **Push Revocation:** Remove the phone's Web Push subscription from the server database, terminating notification delivery.

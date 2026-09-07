@@ -4,64 +4,69 @@ Effort figures are for one developer and are planning estimates, not commitments
 
 ## Phase 0 — Validate the network path (no app code)
 
-**Goal:** prove the phone can reach the web GUI over Tailscale before writing any client.
+**Goal:** prove the phone can reach the web GUI over Tailscale before writing any client code.
 
-- [ ] Install Tailscale on the Mac + phone; enable MagicDNS (personal free tailnet).
-- [ ] Run `dsh web --trusted-host <mac>.<tailnet>.ts.net`.
+- [ ] Ensure Tailscale is running on Mac + Honor Pro 400 (both on same personal tailnet).
+- [ ] Determine Tailscale FQDN (e.g. `macbook-pro-von-max.<tailnet>.ts.net`).
+- [ ] Run `dsh web --trusted-host <mac>.<tailnet>.ts.net --no-open`.
 - [ ] Run `tailscale serve --bg http://127.0.0.1:3080`.
-- [ ] On the phone browser, open `https://<mac>.<tailnet>.ts.net/<boot-token-URL>`; confirm the GUI loads, conversations list, and streaming work.
-- [ ] Confirm the `/api` trust fence accepts the tailnet authority (fix `--trusted-host` authority if 403).
+- [ ] On the phone browser (Android Chrome), open `https://<mac>.<tailnet>.ts.net/?token=<launch-token>`.
+- [ ] Confirm GUI loads, session history appears, streaming responds, and cookie is stored.
 
-**Effort:** ~0.5–1 day. **Exit criteria:** phone controls DSH from a browser on cellular data.
+**Effort:** ~0.5–1 day. **Exit criteria:** phone controls DSH from Chrome over cellular/remote network.
 
-## Phase 1 — v1 WebView shell (Android)
+## Phase 1 — PWA Baseline & Web Push Enablement
 
-**Goal:** ship a minimal app wrapping the validated web GUI.
+**Goal:** make DSH installable to the home screen and enable instant Web Push notifications for approvals.
 
-- [ ] Android app skeleton (Kotlin, single Activity + `WebView`).
-- [ ] `WebViewClient` for HTTPS to the tailnet origin; cookie persistence via `CookieManager`.
-- [ ] First-run auth (load token URL once) + a manual "re-authenticate" action.
-- [ ] Long cookie lifetime (set `cookieMaxAgeDays` via config if available, else accept default and rely on manual re-auth).
-- [ ] App icon, splash, and a simple settings screen (tailnet origin, re-auth button).
+- [ ] Create/configure Web App Manifest (`manifest.webmanifest`) with `display: "standalone"`, icons, and app theme.
+- [ ] Implement Service Worker (`sw.js`) with:
+  - Cache handler for core app shell.
+  - Push event handler: receives VAPID push payload and invokes `self.registration.showNotification()`.
+  - Notification click handler: handles action buttons (e.g., `Approve`, `Dismiss`) or focuses open window.
+- [ ] Set up server-side Web Push module (VAPID key generation, `POST /mobile/api/push/subscribe` endpoint).
+- [ ] Verify "Add to Home Screen" on Android Chrome (WebAPK creation) and test approval push notification on the Honor Pro 400.
 
-**Effort:** ~2–4 days. **Exit criteria:** app on the phone = same experience as the browser, with an app icon and re-auth affordance.
+**Effort:** ~1–2 days. **Exit criteria:** DSH launches full-screen from phone home screen without browser chrome, and background approval pushes alert the device.
 
-> Note: v1 delivers secure access + conversation history via the wrapped web GUI, but **not** workspace/GitHub selection. That requires v2.
+## Phase 2 — `dsh-remote-bridge` Plugin & Mobile UI
 
-## Phase 2 — v2 `dsh-remote-bridge` plugin (harness side)
+**Goal:** build the mobile-optimized Claude-Code-like interface and stable `/mobile/*` API.
 
-**Goal:** the reusable plugin exposing the stable `/mobile/*` API.
+- [ ] Plugin skeleton registered in DSH host composition.
+- [ ] Implement core mobile routes:
+  - `GET /mobile/api/sessions` (list sessions via `session-query`).
+  - `GET /mobile/api/sessions/{id}` (load message/tool history).
+  - `POST /mobile/api/sessions/{id}/prompt` + SSE stream (`/mobile/api/stream`).
+  - `POST /mobile/api/approvals/{id}` (approve/reject tool actions).
+- [ ] Implement mobile-first responsive PWA UI:
+  - Session drawer & search.
+  - Streaming conversation view with smooth autoscroll and syntax highlighting.
+  - Prominent tool approval cards with one-tap Approve/Reject.
+  - Bottom docked input with virtual keyboard padding (`interactive-widget=resizes-content`).
 
-- [ ] Plugin package skeleton registered in a DSH composition (host or a dedicated preset).
-- [ ] Session routes: list + load (`session-query`), new/resume.
-- [ ] Prompt + SSE streaming route; approvals route.
-- [ ] Workspace routes: list/set cwd; `git clone` on the Mac (inherits Mac Git credentials).
-- [ ] Device auth: pairing + `POST /mobile/auth/token` cookie re-issue via `connection.authenticatedUrl()`.
-- [ ] Config schema (workspace roots, cookie lifetime, device keys), validation, docs, tests.
+**Effort:** ~3–5 days. **Exit criteria:** phone has a tailored, thumb-friendly mobile UI with real-time streaming and one-tap approvals.
 
-**Effort:** ~2–3 weeks. **Exit criteria:** a second device (or curl over Tailscale) can list sessions, stream a prompt, and re-issue a cookie against the documented API.
+## Phase 3 — Workspace & GitHub Clone Integration
 
-## Phase 3 — v2 native Compose client
+**Goal:** allow switching local project directories and cloning private GitHub repos from the phone.
 
-**Goal:** the Claude-Code-like native app over the bridge.
+- [ ] Workspace routes:
+  - `GET /mobile/api/workspace` (list whitelisted directories under `~/DevProjects`).
+  - `POST /mobile/api/workspace` (change session working directory).
+- [ ] Git clone route:
+  - `POST /mobile/api/workspace/clone` (clones private repo on the Mac using Mac's existing Git credentials).
+- [ ] Security boundaries: enforce directory sandboxing so sessions cannot be pointed outside whitelisted project roots.
 
-- [ ] Networking layer (OkHttp + SSE) and models for sessions/messages.
-- [ ] Sessions screen (conversation list = history).
-- [ ] Chat screen with streaming output.
-- [ ] Approvals UI (approve/reject cards).
-- [ ] Workspace picker (local folder browse + GitHub clone).
-- [ ] Auth + Keystore + silent re-auth UX.
-- [ ] Error/offline states, polish, release build.
+**Effort:** ~2–3 days. **Exit criteria:** user can clone a GitHub repo from their phone and start a DSH session on it.
 
-**Effort:** ~3–5 weeks. **Exit criteria:** full requirements (FR1–FR6) met natively.
+## Phase 4 — Polish & Advanced Hardening
 
-## Phase 4 — Optional / deferred
+- [ ] Tailscale ACL configuration to lock port 3080 strictly to the phone's Tailscale IP/tag.
+- [ ] iPad responsiveness and layout enhancements.
+- [ ] Offline status banner and automatic reconnection logic.
 
-- [ ] Push notifications (FCM/APNs) — a small relay, only if wanted.
-- [ ] iOS build (see ADR-002) — Flutter or SwiftUI client against the same bridge.
-- [ ] Multi-device / shared-tailnet ACLs and docs for other DSH users.
+## Suggested Sequencing
 
-## Suggested sequencing
-
-Phase 0 → Phase 1 (validate + usable MVP fast) → Phase 2 → Phase 3 → Phase 4.
-The bridge (Phase 2) is the cross-platform asset: whichever client framework is chosen later, it does not change.
+Phase 0 (validate network & origin) → Phase 1 (PWA install & Web Push) → Phase 2 (Mobile UI & Bridge) → Phase 3 (Workspace/Git) → Phase 4 (Polish).
+Total estimated time: **~1.5 to 2 weeks**.
